@@ -1,0 +1,134 @@
+Capítulo 01 - Sobre a Java Persistence API
+Nesse capítulo aprendemos:
+⦁	Que persistir dados com a especificação JDBC é muito trabalhoso, pois devemos ficar montando o SQL na mão, substituindo os campos de '?' por atributos do objeto java. Com JDBC estamos fazendo o mapeamento objeto-relacional na mão, sendo que a especificação do JPA faz isso para gente, ou melhor, a especificação define como fazer e haverá implementações dessa especificação que farão isso para gente;
+⦁	JPA especificação que define como fazer o mapeamento objeto-relacional;
+⦁	Implementações famosas do JPA: Eclipse Link, Hibernate e OpenJPA. Vamos utilizar no curso o Hibernate;
+⦁	Reflection = Classe de um Objeto em Java resulta na criação de uma Tabela equivalente no Banco de Dados, ou seja, Classe vira tabela e atributos viram colunas (campos);
+⦁	Criando e configurando o projeto:
+	1.	Criar um Maven Project (Marcando a opção Create a simple project (skip archetype selection);
+	2.	Group id = pacote base do projeto, usamos o br.com.alura.jpa
+	3.	Artifact Id = nome do projeto, usamos o projeto-jpa;
+	4.	Clicar em Finish;
+	5.	Agora temos o arquivo POM.XML, local onde ficará todas a dependencias do projeto, como Driver do Banco, Hibernate...
+	6.	Criar no arquivo POM.XML, antes da tag </project> a tag: <dependencies>;
+	7.	Dentro da tag <dependencies> haverá sempre uma tag <dependency> que irá definir uma dependencia do nosso projeto.
+⦁	Configurando o projeto para usar a JPA:
+	1.	Dentro da pasta src/main/resources devemos criar a pasta META-INF;
+	2.	Dentro da pasta META-INF devemos criar o arquivo: persistence.xml;
+	3.	O arquivo persistence.xml define as configurações do nosso banco de dados, como endereço, usuário, senha, dialeto, driver, se irá criar tabelas automaticamente, se irá exibir os comandos sql no console e o MAIS IMPORTANTE, define uma unidade de persistencia.
+	4.	Unidade de Persistencia é feita pela tag <persistence-unit name="X"> Essa unidade contem toda configuração citada no item 3, mais o full name das classes (do tipo modelo) que serão refletidas em tablea e o Provider;
+	5.	Provider cuja tag é <provider> é o responsável por criar uma fábrica de EntityManger. É com EntityManger que executamos a JPA. Resumindo o Provider vai criar a fabrica, a fabrica cria o EntityManger e depois podemos utilizar a JPA através do EntityManger;
+	6.	Dissemos no item 4 sobre full name das classes, o hibernate não obriga colocar o nome completo (inclui o pacote) das classes  que vão virar uma tabela, mas a especificação pede isso. Vamos sempre seguir a especificação, pois assim nosso código fica mais genérico, permite mudar com facilidade de implementação. A tag para isso é: <class>
+⦁	Criando a base de dados:
+	1.	para isso basta criar um banco de dados com o mesmo nome que colocamos na url do banco no arquivo persistence.xml, no curso usamos alura_jpa;
+⦁	Criando as classes. Dentro da pasta src/main/java:
+	1.	Vamos criar a classe Conta, no pacote br.com.alura.jpa.modelo;
+	2.	Criar os atributos: Long id, String titular, Integer agencia, Integer numero e Double saldo;
+	3.	Criar os metodos Get e Set desses atributos;
+	4.	Anotar a classe Conta com @Entity, essa anotação indica a JPA que essa classe tem que ser relfetida em uma tabela. JPA passa a gerenciar essa classe;
+	5.	Anotar o atributo id com @Id e @GeneratedValue(strategy = GenerationType.IDENTITY) @id é para definir o atributo com chave primaria e @GeneratedValue é para gerar o valor automaticamente seguindo alguma estrategia.
+	6.	Obs: Sempre usar a importação da Implementação, no caso do pacote persistence.
+	7.	Criar o pacote br.com.alura.jpa.testes;
+	8.	Criar a classe TesteCriaTabelas e criar o metodo main;
+	9.	Precisamos utilizar o EntityManger, para isso vamos criá-lo e para isso precisamos de uma fábrica, pois se trata de um objeto complexo. A fabrica é EntityManagerFactory, mas como criar essa classe? Criamos a classe com o Persistence passando como atributo uma unidade de persistencia, no nosso casso o código ficou: 
+	EntityMangerFactory emf = Persistence.createEntityManagerFactory("contas");
+	EntityManger em = emf.createEntityManager();
+	em.close;
+	emf.close;
+
+Obs: Só de fazer o EntityManager as tabelas são criadas. Através da referencia em poderiamos utilizar as operaçõpes da JPA. e 
+
+Capítulo 02 - Usando EntityManager
+Nesse capítulo aprendemos:
+⦁	Todo código que faz uma mudança de estado no banco de dados, como Incluir, Deletar e Alterar deve ser executado dentro de uma transação;
+⦁	Podemos abrir e fechar uma transação da seguinte forma: em.getTransaction().begin();
+	// Executa código;
+	em.getTransaction().commit();
+⦁	Para atualizar uma tabela basta buscar esse registro através do TipoDoObjeto referencia = em.find(TipoDoObjeto, IdDoRegistro). Tendo em mãos a referencia, basta alterar o valor do mesmo, por exemplo: referencia.setNone('Rodrigo'). Essa mudança irá refletir no banco de dados. Lembre-se o trecho referencia.setNome('') deve estar entre uma transação;
+⦁	O fato mencionado no item anterior ocorre devido o objeto estar no Estado Managed, ou seja, objeto está sendo gerenciado pela JPA, ela ainda conhece a referência do objeto e por isso toda mudança feita no objeto irá refletir no banco. Esse estado ocorre quando buscamos um objeto do banco de dados (find) e também quando acabamos de salvá-lo (persist), para comprovar isso você pode alterar um atributo logo após dar o persist (antes de fechar o commit) e verá que o banco vai rodar um scipt de inset e depois um update;
+⦁	Para fixar, Estado Managed = Objeto Sincronizado com Banco de Dados;
+⦁	Aprendemos que há o Estado Detached, esse é o estado em que o Objeto não está mais sincronizado com o banco de dados, ou seja, o que mudarmos nele só fica nele! Ele ocorre quando fechamos o EntityManager (em) que o gerenciava, ou seja, se uso um em.persist(Conta) e depois faço em.close(); O objeto conta para de ser gerenciado pelo EntityManager();
+⦁	Pegadinha! Não é porque um objeto retorna um Id que ele está no estado Managed, pois se fechamos seu EntityManager ele ainda é capaz de retornar o Id que o banco lhe deu, pois esse objeto um dia foi Managed e ele repassou o Id do banco para o Objeto nesse período que ele era gerenciado pela JPA, mas agora ele é Detached (Sincronização acabou!);
+⦁	Como recuperar o estado Managed? Para isso há metodo em.merge(Objeto). Para isso temos que criar um outro EntityManager, por exemplo em2;
+⦁	Cuidado! Se eu alterar um Objeto no estado Detached e depois torná-lo Managed com o método merge() o update ocorrerá! Pois a JPA irá comparar se há diferença entre Objeto e Registro do Banco, tendo diferença ela atualiza o Registro com os dados do Objeto!
+⦁	O Estado Transient, é o estado em que o Objeto só é reconhecido pelo Java, só esta em memória, eu criei o objeto, inclui os atributos e só! Não há sincronização aqui, Não há Id! É um objeto em potencial a ser Managed!
+⦁	Estado Removed, é o estado que ocorre após executar o método em.remove(Objeto), esse estado remove a sincronização entre JPA e Objeto e ainda remove o registro do Danco de Dados! Possui ID pois esse objeto um dia foi Managed, todos que já passaram por Managed possuem ID!
+⦁	No cenário com JPA queremos sempre que possível trabalhar com Objetos no estado Managed!
+⦁	Pense em Estados de Objeto e não em SQL! Por exemplo, o comando merge(Objeto) não executou apenas Update como muitos falam, ele tabém executou um Select! Pense no Estados!
+⦁	Para FIXAR, quais são os ESTADOS POSSIVEIS?
+⦁	TRANSIENT = Objeto só em memoria. Um java BEAN;
+⦁	Managed = Objeto Sincronizado com JPA, Objeto passou por um dos metodos: persist(), merge(), find();
+⦁	Detached = Já foi Managed, mas perdeu Sincronização, tem ID, não está mais sincronizado, seu EntityManager foi fechado;
+⦁	Removed = Já foi Managed, mas perdeu Sincronização, tem ID, não está mais sincronizado e registro do banco foi apagado, Objeto passou pelo método em.remove();
+
+Capítulo 03 - Mapeando relacionamentos
+Nesse capítulo aprendemos:
+⦁	Aprendemos um novo tipo de atributos, no caso o ENUM. Com ele podemos enumerar os valores disponiveis para um atributo, por exemplo atributo ENUM para Sexo poderia ter os valores de Masculino, Feminino, Outro. O campo Sexo só poderia ter um desses três valores. O valor 1, 2 e 3 nesse  caso também poderia ser armazenado, ne caso seria a ordem dos atributos, devemos escolher através de anotation se queremos a ordem númerica ou o valor da string. Ex:
+	public enum TipoMovimentacao { 
+		ENTRADA, SAIDA;
+ 	}
+	O atributo na classe Movimentacao fica assim:
+	TipoMovimentacao tipo;
+⦁	Aprendemos a criar o relacionamento de um tablea com outra, no caso foi Tabela Conta se relacionar com a Tabela Movimentação. Em nível de classe bastou criar na Classe Movimentação um atributo do tipo conta, no caso: Conta conta e anotar esse atributo com @ManyToOne (Leia-se: Muitas Movimentaçoes para Uma conta, ou Uma Conta possui muitas Movimentacoes);
+⦁	A tabela Movimentação passa a ter uma chave estrangeira, que tem como referência um Id de conta (chave primária de conta);
+⦁	Não devemos usar int ou String para representar Constantes, pois teremos que fazer varias verificacoes. Se possivel use ENUM;
+⦁	Ao persistir (Salvar) um Objeto que tem relacionamento com outro, todos devem estar no estado Managed! (No mínimo Detached) Exemplo:
+	Tentar Salvar Movimentacao sem salvar Conta dará erro, mesmo se Objeto Movimentacao estiver montado corretamente, pois Conta 	estará no estado Transient e isso não pode ocorrer! Devemos salvar primeiro a Conta (que também é um atributo), para depois salvar Movimentacao.
+
+
+Capítulo 04 - Relacionamento para Muitos
+Nesse capítulo aprendemos:
+⦁	Há diversos tipo de relacionamento entre tabelas, no caso: OneToOne, OneToMany, ManyToOne e ManyToMany. 
+	O OneToMany e ManyToOne apenas alteram a acessibilidade de um 	objeto ao outro!
+	Exemplificando: Imagina a tabela Produto e a Tabela TipoDeProduto. 	A tabela de Produto irá guardar os produtos (Cama, Sofá, Video-	Game, DVD, PC, Mesa,Fogao,Carro, Moto). A tabela TipoDeProduto 	vai guardar as categorias dos produtos (Automovel, Moveis de 	Cosinha, Moveis de Sala, Eletrodomestico). No nosso negócio a regra 	é que um Produto SÓ tem uma CATEGORIA, logo temos o seguinte 	entendimento: Um Produto (um registro de produto) se relaciona 	apenas com uma categoria  (Com um registro de categoria), mas uma 	categoria (registro) se relaciona com diversos produtos (registros). A 	prova disso é que DVD, PC, Video-Game todos são do registro 	Eletrodomestico, Carro e Moto são automoveis...mas cada produto só 	tem uma categoria. Logo esse relacionamento é : 
+
+	
+ 
+
+	Por regra no banco de dados o identificador vai pro lado N, logo na 	tabela Produto haverá um atributo, normalmente chamado de 	TipoDeProduto_Id_fk que irá referenciar o Id de um registro de 	TipoDeProduto. (Atraves do atributo TipoDeProduto_Id_fk 	chegaremos no registro TipoDeProduto que possua um nome para 	assim classificar o produto com um tipo.
+⦁	Quando usar ManyToOne ou OneToMany? Vai depender de onde você vai criar a visibilidade/acessibilidade ao outro objeto. Por exemplo, se eu for criar na classe Produto o atributo tipoDeProduto vou anota-lo com @ManyToOne, pois a primeira palavra antes do TO é sobre a classe e a última palavra é sobre o atributo, no caso A classe Produto ta do lado N = Muitos e o tipoDeProduto ta do lado 1 = One, entende-se também, Muitos Produtos vinculam-se com Um Tipo de Produto. Se eu criar o atributo List<Produto> produtoLista na classe TipoDeProduto esse sera @oneToMany, pois estou do lado 1 e através do atributo vou acessar o lado de muitos (N).
+⦁	O JPA exige que as calsses dos tipo Entity Possuam o construtor Default (Sem atributo). Caso você crie um outro construtor você deve criar o default! Pode usar o @Deprecated para impedir que o desenvolvedor utilize este;
+⦁	Ao criar um Relacionamento OneToOne o que esperamos é ter um relacionamento de 1 para 1. Usamos isso na classe Cliente onde ele se relaciona com Conta, mas mesmo assim coseguimos criar a mesma conta com mais de um cliente, por que? O @OneToOne não criar a Regra(Costraint) de chave estrangeira única, para isso devemos anotar o atributo com @JoinColumn(unique = true)
+
+
+Capítulo 05 - Pesquisando com JPQL
+Nesse capítulo aprendemos:
+⦁	Que existe uma linguagem bem semelhante a SQL e que podemos utiliza-la com o Java e JPA. Se chama JPQL!
+⦁	Devemos usar a JPQL aplicando conceitos de Orientação Objeto;
+⦁	Exemplos desses códigos:
+ 
+	SQL => SELECT * FROM movimentacao m WHERE conta_id = 2;
+	JPQL (Precisa melhorar, pois estamos usando id) =>  String jpql = "SELECT m from Movimentacao WHERE m.conta.id = 2";
+
+	JPQL Orientada a Objeto:
+
+	Conta conta = new Conta();
+	conta.setId(2L);
+
+	// JPQL Orientada a Objeto!
+	String JPQL = "SELECT m from Movimentacao m WHERE m.conta = :pConta";
+		
+	// Monta a query de acordo com JPQL
+	Query query = em.createQuery(JPQL);
+	//Vai trocar na Query :pConta pelo objeto conta!
+	query.setParameter("pConta", conta);
+
+	// Executa a query e pega resultado
+	List<Movimentacao> resultList = query.getResultList();
+
+	for (Movimentacao movimentacao : resultList) {
+	System.out.println("Descrição: " + movimentacao.getDescricao());
+	System.out.println("Tipo: " + movimentacao.getTipoMovimentacao());
+
+⦁	Ainda podemos Melhorar nossa JPQL!  Podemos usar QUERY TIPADAS! Basta trocar a linha:  Query query = em.createQuery(jpql) para: TypedQuery<Movimentacao> query = em.createQuery(jpql, Movimentacao.class);
+
+⦁	JPQL com JOIN (Juntando Tabela):
+	String JPQL = "SELECT m from Movimentacao m join m.categorias c WHERE c = :pCategoria";
+	Movimentacao tem como atributo uma lista de categorias, entao join m.categorias é um JOIN com Categoria e Movimentacao_Categoria ao mesmo tempo!
+
+
+Iniando o curso:  Java e JPA - Persista seus objetos com a JPA2 e Hibernate
+
+Link do curso: https://cursos.alura.com.br/course/jpa-hibernate-persistencia-objetos
+
+Repositório: https://github.com/RodrigoFrancoZup/JPA-Hibernate
